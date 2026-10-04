@@ -43,6 +43,8 @@ export interface Property {
   purchase_costs: number | null
   furnishing_cost: number | null
   purchase_date: string | null
+  /** Coût du ménage par départ : une dépense « ménage » est comptée automatiquement à chaque check-out. */
+  cleaning_cost: number | null
   created_at: string
 }
 

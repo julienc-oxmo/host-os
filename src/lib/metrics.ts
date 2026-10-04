@@ -166,13 +166,20 @@ export function buildAnalytics(ds: Dataset, today = todayStr()): Analytics {
       first = Math.min(first, toDay(r.check_in))
       last = Math.max(last, toDay(r.check_out) - 1)
     })
+    // Ménage systématique : une dépense à chaque départ (jusqu'à la fin du mois courant, comme les récurrentes).
+    const cleaning: Expense[] = property.cleaning_cost
+      ? active.filter((r) => r.check_out <= horizon).map((r) => ({
+          id: `clean:${r.id}`, property_id: property.id, category: 'cleaning' as const, amount: property.cleaning_cost!, currency: property.currency,
+          date: r.check_out, description: `Ménage — ${r.guest_name ?? r.check_out}`, recurring: false, recurrence_interval: null, recurrence_end: null,
+        }))
+      : []
     const listedFrom = property.listed_since ? toDay(property.listed_since) : isFinite(first) ? first : toDay(today)
     props.set(property.id, {
       property,
       all,
       active,
       nights,
-      expenses: expandExpenses(expBy.get(property.id) ?? [], horizon),
+      expenses: [...expandExpenses(expBy.get(property.id) ?? [], horizon), ...cleaning],
       listedFrom,
       lastNight: isFinite(last) ? last : listedFrom,
     })

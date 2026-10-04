@@ -48,7 +48,7 @@ export function createLocalRepo(): Repo {
       const row: Property = {
         id: uid(), user_id: USER, city: null, country: null, currency: 'EUR', address: null, bedrooms: 1, capacity: 2,
         image_url: null, airbnb_listing_id: null, ical_url: null, active: true, listed_since: null,
-        purchase_price: null, purchase_costs: null, furnishing_cost: null, purchase_date: null,
+        purchase_price: null, purchase_costs: null, furnishing_cost: null, purchase_date: null, cleaning_cost: null,
         created_at: new Date().toISOString(), ...p,
       }
       ds.properties.push(row)

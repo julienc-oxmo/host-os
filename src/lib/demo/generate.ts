@@ -124,7 +124,7 @@ export function generateDemo({ userId, today, seed = 20260101 }: DemoOptions): D
       id: uuid(), user_id: userId, name: c.name, city: c.city, country: c.country, currency: c.currency,
       address: c.address, bedrooms: c.bedrooms, capacity: c.capacity, image_url: c.image,
       airbnb_listing_id: null, ical_url: null, active: true, listed_since: start,
-      purchase_price: null, purchase_costs: null, furnishing_cost: null, purchase_date: null,
+      purchase_price: null, purchase_costs: null, furnishing_cost: null, purchase_date: null, cleaning_cost: null,
       created_at: new Date(`${start}T09:00:00Z`).toISOString(),
     }
     bundle.properties.push(property)

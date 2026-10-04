@@ -66,7 +66,7 @@ export default function Expenses() {
                       <td><Badge plain>{EXPENSE_LABELS[e.category]}</Badge></td>
                       <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.recurring && <span title={`Récurrente · ${REC_LABELS[e.recurrence_interval ?? 'monthly']}`}>↻ </span>}{e.description}</td>
                       <td className="num">{money(e.amount, e.currency, { decimals: 2 })}</td>
-                      <td><button className="btn ghost sm icon-btn" aria-label="Modifier" onClick={() => setEdit(ds.expenses.find((x) => x.id === e.parent) ?? null)}><Icon name="edit" size={14} /></button></td>
+                      <td>{e.id.startsWith('clean:') ? <span className="faint small" title="Automatique : modifiable dans la fiche du logement">auto</span> : <button className="btn ghost sm icon-btn" aria-label="Modifier" onClick={() => setEdit(ds.expenses.find((x) => x.id === e.parent) ?? null)}><Icon name="edit" size={14} /></button>}</td>
                     </tr>
                   ))}
                 </tbody>

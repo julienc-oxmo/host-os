@@ -251,3 +251,16 @@ describe('import historique des transactions Airbnb', () => {
     expect(paybackYears(1000, 0, -5)).toBeNull()
   })
 })
+
+describe('ménage automatique à chaque départ', () => {
+  it('une dépense de ménage par check-out, jamais pour les annulées', () => {
+    const p = { ...ds.properties[1], cleaning_cost: 400 }
+    const a2 = buildAnalytics({ ...ds, properties: [p], expenses: [] }, TODAY)
+    const pp = a2.props.get(p.id)!
+    const month = rangeMetrics(pp, '2026-03-01', '2026-03-31')
+    const outs = pp.active.filter((r) => r.check_out >= '2026-03-01' && r.check_out <= '2026-03-31').length
+    expect(outs).toBeGreaterThan(0)
+    expect(month.expenses).toBe(outs * 400)
+    expect(pp.expenses.every((e) => e.category === 'cleaning' && e.amount === 400)).toBe(true)
+  })
+})
