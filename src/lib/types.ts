@@ -39,6 +39,10 @@ export interface Property {
   ical_url: string | null
   active: boolean
   listed_since: string | null
+  purchase_price: number | null
+  purchase_costs: number | null
+  furnishing_cost: number | null
+  purchase_date: string | null
   created_at: string
 }
 

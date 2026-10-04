@@ -42,3 +42,9 @@ supabase/               schéma + RLS, Edge Functions (ical-sync, ingest-reserva
 - Séjour moyen et lead time portent sur les séjours dont l'arrivée tombe dans la période. Les réservations « en attente » et annulées sont exclues.
 - Revenue Opportunity = nuits disponibles non vendues × ADR de référence (30 j / 90 j / annuel) — toujours présentée comme une estimation.
 - Multi-devises : chaque logement garde sa devise. La consolidation exige un taux saisi par l'utilisateur (`fx_rates`) ; **aucun taux n'est inventé** — sans taux, le logement est exclu des totaux et un bandeau l'indique.
+
+## Utiliser avec un vrai logement
+1. Paramètres → *Tout effacer* (ou démarrez vide), puis ajoutez le logement (nom, devise, prix d'achat, frais d'acquisition en %, ameublement).
+2. Imports → déposez l'export Airbnb *Historique des transactions* (CSV) : les lignes sont regroupées par réservation (brut, frais de service, impôt retenu → dépense « Taxes »). Pour les séjours à venir, importez aussi l'export *Réservations*.
+3. Fiche logement → *Rentabilité de l'investissement* : rendement, amortissement estimé et simulation.
+> Ne commitez jamais vos exports CSV : ils contiennent les noms de vos voyageurs.

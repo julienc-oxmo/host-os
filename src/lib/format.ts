@@ -5,6 +5,11 @@ const LOCALE = 'fr-FR'
 export function money(v: number | null | undefined, cur: Currency, opts: { compact?: boolean; decimals?: number } = {}): string {
   if (v == null || !isFinite(v)) return '—'
   const digits = opts.decimals ?? 0
+  if (cur === 'MXN') {
+    // « $MX » (rendu par défaut en français) est peu lisible : on affiche le code devise.
+    const n = new Intl.NumberFormat(LOCALE, opts.compact ? { notation: 'compact', maximumFractionDigits: 1 } : { maximumFractionDigits: digits, minimumFractionDigits: digits }).format(v)
+    return `${n}\u00a0MXN`.replace(/\u202f/g, '\u00a0')
+  }
   const nf = new Intl.NumberFormat(LOCALE, {
     style: 'currency',
     currency: cur,

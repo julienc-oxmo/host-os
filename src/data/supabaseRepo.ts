@@ -100,12 +100,17 @@ export function createSupabaseRepo(sb: SupabaseClient, userId: string, email: st
     async deleteReservation(id) { must(await sb.from('reservations').delete().eq('id', id)) },
 
     async ingestReservations(rows, meta) {
-      const payload = rows.map(({ property_ref, ...r }) => ({ ...r, currency: r.currency ?? 'EUR', source: meta.source }))
+      const payload = rows.map(({ property_ref, tax_withheld, tax_date, ...r }) => ({ ...r, currency: r.currency ?? 'EUR', source: meta.source }))
       for (let i = 0; i < payload.length; i += CHUNK) {
         // L'index unique (property_id, external_id) garantit qu'aucun doublon n'est créé, même en cas d'import concurrent.
         const { error } = await sb.from('reservations').upsert(payload.slice(i, i + CHUNK), { onConflict: 'property_id,external_id', ignoreDuplicates: true })
         if (error) throw new Error(error.message)
       }
+      const taxes = rows.filter((r) => (r.tax_withheld ?? 0) > 0).map((r) => ({
+        property_id: r.property_id, category: 'taxes', amount: r.tax_withheld, currency: r.currency ?? 'EUR', date: r.tax_date ?? r.check_out,
+        description: `Retenue d’impôt à la source (plateforme) — ${r.external_id}`, recurring: false,
+      }))
+      await insertChunks(sb, 'expenses', taxes)
       must(await sb.from('imports').insert({ user_id: userId, filename: meta.filename, source: meta.source, rows_imported: rows.length, duplicates: meta.duplicates }))
     },
 

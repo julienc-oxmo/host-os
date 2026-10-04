@@ -3,7 +3,7 @@ import { todayStr } from '../lib/dates'
 import type { AlertRow, Dataset, Property } from '../lib/types'
 import type { Repo } from './repository'
 
-const KEY = 'hostos.local.v1'
+const KEY = 'hostos.local.v2'
 const USER = 'local-user'
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2) + Date.now().toString(16))
 
@@ -22,9 +22,9 @@ export function createLocalRepo(): Repo {
   let ds: Dataset
   try {
     const raw = localStorage.getItem(KEY)
-    ds = raw ? (JSON.parse(raw) as Dataset) : seeded()
+    ds = raw ? (JSON.parse(raw) as Dataset) : emptyDataset()
   } catch {
-    ds = seeded()
+    ds = emptyDataset()
   }
   const save = () => {
     try { localStorage.setItem(KEY, JSON.stringify(ds)) } catch { /* quota / navigation privée */ }
@@ -48,6 +48,7 @@ export function createLocalRepo(): Repo {
       const row: Property = {
         id: uid(), user_id: USER, city: null, country: null, currency: 'EUR', address: null, bedrooms: 1, capacity: 2,
         image_url: null, airbnb_listing_id: null, ical_url: null, active: true, listed_since: null,
+        purchase_price: null, purchase_costs: null, furnishing_cost: null, purchase_date: null,
         created_at: new Date().toISOString(), ...p,
       }
       ds.properties.push(row)
@@ -73,8 +74,10 @@ export function createLocalRepo(): Repo {
     async deleteReservation(id) { ds.reservations = ds.reservations.filter((x) => x.id !== id); save() },
     async ingestReservations(rows, meta) {
       const have = new Set(ds.reservations.map((r) => `${r.property_id}|${r.external_id}`))
-      for (const { property_ref, ...r } of rows) {
+      for (const { property_ref, tax_withheld, tax_date, ...r } of rows) {
         if (have.has(`${r.property_id}|${r.external_id}`)) continue
+        if ((tax_withheld ?? 0) > 0)
+          ds.expenses.push({ id: uid(), property_id: r.property_id, category: 'taxes', amount: tax_withheld!, currency: r.currency ?? 'EUR', date: tax_date ?? r.check_out, description: `Retenue d’impôt à la source (plateforme) — ${r.external_id}`, recurring: false, recurrence_interval: null, recurrence_end: null })
         const nights = Math.round((Date.parse(r.check_out) - Date.parse(r.check_in)) / 86_400_000)
         ds.reservations.push({ ...r, currency: r.currency ?? 'EUR', id: uid(), nights, source: meta.source })
       }

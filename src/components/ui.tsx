@@ -81,7 +81,7 @@ export function Kpi({ label, value, delta, deltaKind, invert, hint, big, classNa
   return (
     <div className={`card kpi ${big ? 'big' : ''} ${className}`}>
       <div className="label">{label}{info && <span title={info} style={{ cursor: 'help', opacity: 0.6 }}><Icon name="info" size={13} /></span>}</div>
-      <div className="value">{value}</div>
+      <div className="value" style={typeof value === 'string' && value.length > 11 ? { fontSize: value.length > 14 ? 17 : 21 } : undefined}>{value}</div>
       <div className="row wrap" style={{ gap: 8 }}>
         {delta !== undefined && <Delta value={delta} kind={deltaKind} invert={invert} />}
         {hint && <span className="hint">{hint}</span>}

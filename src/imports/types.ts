@@ -19,6 +19,9 @@ export interface NormalizedReservation {
   currency: Currency | null
   channel: string
   status: ReservationStatus
+  /** Impôt retenu à la source par la plateforme (ex. ISR Mexique) : enregistré comme dépense « taxes ». */
+  tax_withheld?: number
+  tax_date?: string | null
 }
 
 export type ImportSourceId = 'airbnb_csv' | 'ical' | 'guesty' | 'hostaway' | 'lodgify' | 'custom_api'

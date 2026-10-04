@@ -5,6 +5,7 @@ import { PageHead } from '../components/Layout'
 import { parseCsv, toCsv, type ParsedCsv } from '../lib/csv'
 import { FIELDS, detectMapping, normalizeRows, type DateOrder, type ImportField } from '../imports/airbnbCsv'
 import { planIngest } from '../imports/ingest'
+import { isTransactionExport, parseAirbnbTransactions } from '../imports/airbnbTransactions'
 import { IMPORT_SOURCES } from '../imports/types'
 import { classifyEvent, parseIcs } from '../lib/ical'
 import { addDays, todayStr } from '../lib/dates'
@@ -71,6 +72,7 @@ function CsvWizard() {
   }
   const reset = () => { setFile(null); setStep(0); setDone(null); setError('') }
 
+  const txMode = !!file && isTransactionExport(file.csv)
   const listings = useMemo(() => (file && mapping.listing != null ? [...new Set(file.csv.rows.map((r) => (r[mapping.listing!] ?? '').trim()).filter(Boolean))] : []), [file, mapping.listing])
   const resolve = (ref: string | null) => {
     if (ref && listingMap[ref]) return listingMap[ref] === 'skip' ? null : listingMap[ref]
@@ -80,7 +82,9 @@ function CsvWizard() {
 
   const result = useMemo(() => {
     if (!file) return null
-    const mapped = normalizeRows(file.csv, { mapping, dateOrder, defaultCurrency: 'EUR', today })
+    const mapped = txMode
+      ? parseAirbnbTransactions(file.csv, { dateOrder, today })
+      : normalizeRows(file.csv, { mapping, dateOrder, defaultCurrency: 'EUR', today })
     // devise incohérente → ligne refusée (évite de mélanger des montants de devises différentes)
     const issues = [...mapped.issues]
     const ok = mapped.rows.filter((r) => {
@@ -91,11 +95,11 @@ function CsvWizard() {
     })
     const plan = planIngest(ok, ds.reservations, (r) => resolve(r.property_ref))
     return { mapped, issues, plan }
-  }, [file, mapping, dateOrder, listingMap, defaultProp, ds.reservations, ds.properties, today])
+  }, [file, txMode, mapping, dateOrder, listingMap, defaultProp, ds.reservations, ds.properties, today])
 
   const errors = result?.issues.filter((i) => i.level === 'error') ?? []
   const required = FIELDS.filter((f) => f.required)
-  const missing = required.filter((f) => mapping[f.key] == null)
+  const missing = txMode ? [] : required.filter((f) => mapping[f.key] == null)
   const canImport = !!result && result.plan.fresh.length > 0 && missing.length === 0
 
   const sample = () => {
@@ -154,10 +158,11 @@ function CsvWizard() {
             <div><div className="small muted">Colonnes</div><div className="n">{file.csv.headers.length}</div></div>
             <div><div className="small muted">Séparateur</div><div className="n">{file.csv.delimiter === '\t' ? 'Tab' : file.csv.delimiter}</div></div>
           </div>
+          {txMode && <div style={{ marginTop: 14 }}><Callout tone="pos"><b>Historique des transactions Airbnb détecté.</b> Les lignes sont regroupées par code de confirmation : revenus bruts, frais de service et impôt retenu à la source (enregistré en dépense « Taxes »). Les virements (Payout), bonus et la TVA retenue (neutre) ne sont pas importés comme réservations.</Callout></div>}
           <h4 style={{ margin: '18px 0 8px' }}>Colonnes reconnues</h4>
-          <div className="pill-list">
+          {!txMode && <div className="pill-list">
             {FIELDS.map((f) => <Badge key={f.key} tone={mapping[f.key] != null ? 'pos' : f.required ? 'neg' : undefined}>{f.label}{mapping[f.key] != null ? ` ← ${file.csv.headers[mapping[f.key]!]}` : f.required ? ' (manquant)' : ''}</Badge>)}
-          </div>
+          </div>}
           {missing.length > 0 && <div style={{ marginTop: 12 }}><Callout>Colonnes obligatoires non détectées : {missing.map((m) => m.label).join(', ')}. Vous pourrez les associer à l’étape Mapping.</Callout></div>}
           <Nav next={2} />
         </>
@@ -176,8 +181,9 @@ function CsvWizard() {
 
       {file && step === 3 && (
         <>
+          {txMode && <Callout tone="info">Mapping automatique : le format est connu, rien à associer. Vérifiez seulement le logement et le format des dates.</Callout>}
           <div className="form-grid">
-            {FIELDS.map((f) => (
+            {!txMode && FIELDS.map((f) => (
               <Field key={f.key} label={`${f.label}${f.required ? ' *' : ''}`}>
                 <select className="select" style={{ width: '100%' }} value={mapping[f.key] ?? ''} onChange={(e) => setMapping({ ...mapping, [f.key]: e.target.value === '' ? null : Number(e.target.value) })}>
                   <option value="">— non mappé —</option>
@@ -209,13 +215,13 @@ function CsvWizard() {
       {file && result && step === 4 && (
         <>
           <div className="summary-grid">
-            <div><div className="small muted">Lignes analysées</div><div className="n">{file.csv.rows.length}</div></div>
+            <div><div className="small muted">{txMode ? 'Réservations détectées' : 'Lignes analysées'}</div><div className="n">{txMode ? (result.mapped as { groups: number }).groups : file.csv.rows.length}</div></div>
             <div><div className="small muted">Nouvelles réservations</div><div className="n" style={{ color: 'var(--pos)' }}>{result.plan.fresh.length}</div></div>
             <div><div className="small muted">Déjà présentes</div><div className="n">{result.plan.duplicates.length}</div></div>
-            <div><div className="small muted">Invalides / ignorées</div><div className="n" style={{ color: errors.length ? 'var(--neg)' : undefined }}>{file.csv.rows.length - result.mapped.rows.length}</div></div>
+            <div><div className="small muted">Invalides / ignorées</div><div className="n" style={{ color: errors.length ? 'var(--neg)' : undefined }}>{txMode ? (result.mapped as { groups: number }).groups - result.mapped.rows.length : file.csv.rows.length - result.mapped.rows.length}</div></div>
             {result.plan.unmapped.length > 0 && <div><div className="small muted">Sans logement</div><div className="n">{result.plan.unmapped.length}</div></div>}
           </div>
-          <p style={{ marginTop: 14 }}><b>{file.csv.rows.length} lignes analysées · {result.plan.fresh.length} nouvelles réservations · {result.plan.duplicates.length} déjà présentes</b></p>
+          <p style={{ marginTop: 14 }}><b>{file.csv.rows.length} lignes analysées{txMode ? ` (${(result.mapped as { groups: number }).groups} réservations)` : ''} · {result.plan.fresh.length} nouvelles réservations · {result.plan.duplicates.length} déjà présentes</b></p>
           {result.issues.length > 0 && (
             <div className="table-wrap" style={{ border: '1px solid var(--border)', borderRadius: 12, marginTop: 14, maxHeight: 220, overflowY: 'auto' }}>
               <table className="table"><thead><tr><th>Ligne</th><th>Niveau</th><th>Détail</th></tr></thead>

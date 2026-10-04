@@ -6,6 +6,8 @@ import { parseCsv } from './csv'
 import { detectMapping, normalizeRows, parseAmount, parseDate } from '../imports/airbnbCsv'
 import { planIngest } from '../imports/ingest'
 import { parseIcs, classifyEvent } from './ical'
+import { isTransactionExport, parseAirbnbTransactions } from '../imports/airbnbTransactions'
+import { investmentSummary, monthlyProfit, paybackYears } from './investment'
 import { computeAlerts } from './alerts'
 import { generateInsights } from './insights'
 import { computePerformance } from './performance'
@@ -221,3 +223,31 @@ describe('iCal', () => {
   })
 })
 void startOfMonth
+
+describe('import historique des transactions Airbnb', () => {
+  const csv = parseCsv([
+    'Date,Arrivée au plus tard le,Type,Code de confirmation,Date de réservation,Date de début,Date de fin,Nuits,Voyageur,Logement,Détails,Code de référence,Devise,Montant,Versé,Frais de service,Frais de Versement sur carte bancaire,Frais de ménage,Revenus bruts,Taxes reversées par Airbnb,Année des revenus',
+    '09/26/2026,10/02/2026,Payout,,,,,,,,"Transfert",M-1,EUR,,266.82,,,,,,',
+    '09/26/2026,,Taxes reversées par l\'hôte,HMX1,09/20/2026,09/25/2026,09/30/2026,5,Test Guest,Loft,,,MXN,1120.07,,0.00,,0.00,1120.07,"1470,01",2026',
+    '09/26/2026,,Retenue sur la TVA au Mexique,HMX1,09/20/2026,09/25/2026,09/30/2026,5,Test Guest,Loft,,,MXN,-1120.07,,0.00,,0.00,,"1470,01",2026',
+    '09/26/2026,,Retenue d\'impôt sur le revenu au Mexique,HMX1,09/20/2026,09/25/2026,09/30/2026,5,Test Guest,Loft,,,MXN,-280.00,,0.00,,0.00,,"1470,01",2026',
+    '09/26/2026,,Réservation,HMX1,09/20/2026,09/25/2026,09/30/2026,5,Test Guest,Loft,,,MXN,5656.02,,"1344,01",,0.00,7000.00,"1470,01",2026',
+    '11/29/2019,12/06/2019,HOST_OFFER_MANUAL,,,,,,,,,,USD,360.00,,,,,360.00,,2019',
+  ].join('\n'))
+  it('détecte le format et regroupe par réservation', () => {
+    expect(isTransactionExport(csv)).toBe(true)
+    const r = parseAirbnbTransactions(csv, { today: TODAY })
+    expect(r.rows).toHaveLength(1)
+    expect(r.rows[0]).toMatchObject({ external_id: 'HMX1', check_in: '2026-09-25', check_out: '2026-09-30', gross_revenue: 7000, platform_fee: 1344.01, net_revenue: 5655.99, currency: 'MXN', status: 'completed', tax_withheld: 280, booking_date: '2026-09-20' })
+  })
+  it('rentabilité : capital investi, rendement, amortissement', () => {
+    const p = { ...demo.properties[1], purchase_price: 2_300_000, purchase_costs: 161_000, furnishing_cost: null }
+    const s = investmentSummary(an.props.get(p.id)!, p, TODAY)!
+    expect(s.invested).toBe(2_461_000)
+    expect(s.furnishing).toBeNull()
+    const a = { occupancy: 70, adr: 1500, feePct: 15, taxPct: 0, fixedCosts: 0 }
+    expect(monthlyProfit(a)).toBeCloseTo(0.7 * 30.4 * 1500 * 0.85, 6)
+    expect(paybackYears(2_461_000, 0, monthlyProfit(a))).toBeCloseTo(2_461_000 / (monthlyProfit(a) * 12), 6)
+    expect(paybackYears(1000, 0, -5)).toBeNull()
+  })
+})

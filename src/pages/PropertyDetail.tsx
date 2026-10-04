@@ -4,6 +4,7 @@ import { useApp } from '../data/AppContext'
 import { Badge, Card, Delta, Field, Icon, Kpi, Modal, PerfBadge, Progress, PropertyImage, Segmented } from '../components/ui'
 import { TimeChart, Legend } from '../components/charts/TimeChart'
 import { PropertyForm } from '../components/PropertyForm'
+import { InvestmentCard } from '../components/InvestmentCard'
 import { addDays, addMonths, addYears, endOfMonth, startOfMonth } from '../lib/dates'
 import { fmtDate, fmtMonth, fmtMonthShortY, money, nightsLabel, num, pct, pts } from '../lib/format'
 import { findGaps, monthSeries, pctChange, rangeMetrics, referenceAdr, type RangeMetrics } from '../lib/metrics'
@@ -162,6 +163,8 @@ export default function PropertyDetail() {
           )}
         </Card>
       </div>
+
+      <div style={{ marginTop: 16 }}><InvestmentCard property={p} onEdit={() => setEdit(true)} /></div>
 
       <div style={{ marginTop: 28 }} className="row">
         <button className="btn danger sm" onClick={() => { if (confirm(`Supprimer « ${p.name} » et toutes ses données ?`)) run(() => repo.deleteProperty(p.id), 'Logement supprimé').then(() => nav('/portfolio')) }}><Icon name="trash" size={14} />Supprimer ce logement</button>
